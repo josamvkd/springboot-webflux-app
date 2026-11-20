@@ -1,51 +1,438 @@
-Spring Boot WebFlux Customer API
-springboot-webflux-app is a proof of concept that compares a blocking customer-list endpoint with a reactive stream delivered through Server-Sent Events (SSE). It shows how to expose both annotation-based controllers and functional routes in the same application.
-Tech stack
-- Java and Spring Boot
-- Spring WebFlux and Project Reactor (Mono and Flux)
+# Spring Boot WebFlux Customer API
+
+## Overview
+
+**springboot-webflux-app** is a Proof of Concept (PoC) project demonstrating the differences between **blocking and reactive programming** using Spring Boot WebFlux and Project Reactor.
+
+The application compares a traditional blocking customer-list endpoint with a reactive streaming endpoint using **Server-Sent Events (SSE)**.
+
+It also demonstrates two approaches to building REST APIs with Spring WebFlux:
+
+- **Annotation-Based Controllers** using `@RestController`.
+- **Functional Routing** using `RouterFunction` and `HandlerFunction`.
+
+## Technologies Used
+
+- Java
+- Spring Boot
+- Spring WebFlux
+- Project Reactor (Mono and Flux)
+- Server-Sent Events (SSE)
 - Lombok
-- JUnit for Reactor examples
-Run locally
-Use the JDK version configured in the project's build file. From the project root, run the command for your build tool.
-Build tool	Start the app	Run the tests
-Maven	./mvnw spring-boot:run	./mvnw test
-Gradle	./gradlew bootRun	./gradlew test
+- JUnit
 
+## Key Features
 
-If your project has no wrapper, use the corresponding installed command (mvn or gradle). The examples assume the app is running on port 8080.
-API endpoints
-Method	Path	Style	Behavior
-GET	/api/customers	Controller	Returns 10 customers in one JSON array after roughly 10 seconds.
-GET	/api/stream	Controller	Emits 10 customers over SSE, about one per second.
-GET	/router/customers	Functional	Returns 50 generated customers as JSON, with no artificial delay.
-GET	/router/customers/stream	Functional	Emits 10 customers over SSE, about one per second.
-GET	/router/customer/{input}	Functional	Looks up a customer by numeric ID. IDs 1–50 exist. A missing numeric ID returns HTTP 200 with an empty body.
-POST	/router/customer/save	Functional	Reads a JSON customer and echoes its ID and name as plain text. The handler performs no persistence.
+- Demonstrates blocking versus non-blocking processing.
+- Implements reactive streaming using Flux.
+- Supports Server-Sent Events (SSE).
+- Demonstrates annotation-based REST controllers.
+- Implements functional routing and handlers.
+- Uses Mono and Flux for reactive data processing.
+- Demonstrates asynchronous event emission using `delayElements()`.
+- Includes Reactor examples for subscription, logging, and error handling.
 
+## Running the Application
 
-Try it with curl
-Compare a complete JSON response with a stream that delivers its first customer after about one second. The -N flag disables curl's output buffering so each event appears as it arrives.
+### Prerequisites
+
+- Java JDK compatible with the project build configuration.
+- Maven or Gradle, depending on the project setup.
+- An IDE such as IntelliJ IDEA, Eclipse, or VS Code.
+
+### Start the Application
+
+Run the appropriate command from the project root.
+
+| Build Tool | Start Application | Run Tests |
+|---|---|---|
+| Maven | `./mvnw spring-boot:run` | `./mvnw test` |
+| Gradle | `./gradlew bootRun` | `./gradlew test` |
+
+If the project does not include a build-tool wrapper, use the installed `mvn` or `gradle` command.
+
+The examples assume the application is running at:
+
+```text
+http://localhost:8080
+```
+
+## REST API Endpoints
+
+The application exposes both annotation-based and functional endpoints.
+
+### Annotation-Based Controller Endpoints
+
+| HTTP Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/customers` | Returns 10 customers as a JSON array after approximately 10 seconds. |
+| GET | `/api/stream` | Streams 10 customers using SSE, approximately one customer per second. |
+
+### Functional Routing Endpoints
+
+| HTTP Method | Endpoint | Description |
+|---|---|---|
+| GET | `/router/customers` | Returns 50 generated customers as JSON without artificial delay. |
+| GET | `/router/customers/stream` | Streams 10 customers using SSE, approximately one per second. |
+| GET | `/router/customer/{input}` | Retrieves a customer using a numeric ID between 1 and 50. |
+| POST | `/router/customer/save` | Accepts a customer JSON object and returns its ID and name as plain text without persistence. |
+
+**Note:** A missing numeric customer ID returns HTTP 200 with an empty response body in the current implementation.
+
+## Testing the REST APIs Using cURL
+
+### 1. Retrieve All Customers (Blocking)
+
+**Endpoint:**
+
+```http
+GET /api/customers
+```
+
+**cURL:**
+
+```bash
 curl -sS http://localhost:8080/api/customers
+```
+
+**Behavior:**
+
+- Generates 10 customer records.
+- Uses `Thread.sleep(1000)` for each customer.
+- Waits approximately 10 seconds before returning the complete JSON array.
+
+### 2. Stream Customers Using SSE (Reactive)
+
+**Endpoint:**
+
+```http
+GET /api/stream
+```
+
+**cURL:**
+
+```bash
 curl -N http://localhost:8080/api/stream
-Both streaming routes use Content-Type: text/event-stream. A typical event looks like this, with a blank line after each event.
+```
+
+**Behavior:**
+
+- Emits 10 customers as Server-Sent Events.
+- Sends approximately one customer every second.
+- The first customer arrives after approximately one second.
+- Uses `Flux` and `delayElements()` for asynchronous emission.
+
+The `-N` option disables cURL output buffering, allowing events to appear as they arrive.
+
+**Sample SSE Response:**
+
+```text
 data:{"id":1,"name":"customer 1"}
 
 data:{"id":2,"name":"customer 2"}
+```
 
-Try the functional routes.
+Both streaming endpoints use:
+
+```http
+Content-Type: text/event-stream
+```
+
+### 3. Retrieve Customers Using Functional Routing
+
+**Endpoint:**
+
+```http
+GET /router/customers
+```
+
+**cURL:**
+
+```bash
 curl -sS http://localhost:8080/router/customers
+```
+
+**Behavior:**
+
+Returns 50 generated customer records without artificial delay.
+
+### 4. Stream Customers Using Functional Routing
+
+**Endpoint:**
+
+```http
+GET /router/customers/stream
+```
+
+**cURL:**
+
+```bash
 curl -N http://localhost:8080/router/customers/stream
+```
+
+**Behavior:**
+
+Streams 10 customers using SSE, approximately one customer per second.
+
+### 5. Retrieve Customer by ID
+
+**Endpoint:**
+
+```http
+GET /router/customer/{input}
+```
+
+**cURL:**
+
+```bash
 curl -sS http://localhost:8080/router/customer/7
+```
+
+**Sample Response:**
+
+```json
+{
+  "id": 7,
+  "name": "customer 7"
+}
+```
+
+**Behavior:**
+
+- Accepts a numeric customer ID.
+- Searches generated customer records.
+- Returns the matching customer.
+- Returns HTTP 200 with an empty body when a numeric ID is not found.
+
+### 6. Save Customer Using Functional Routing
+
+**Endpoint:**
+
+```http
+POST /router/customer/save
+```
+
+**cURL:**
+
+```bash
 curl -sS -X POST http://localhost:8080/router/customer/save \
   -H 'Content-Type: application/json' \
   -d '{"id":51,"name":"Alex"}'
-The lookup returns {"id":7,"name":"customer 7"}. The POST returns 51 : Alex.
-How it works
-- CustomerController delegates the annotation-based HTTP endpoints to CustomerService.
-- RouterConfig maps functional routes to CustomerHandler and CustomerStreamHandler. Their methods return Mono<ServerResponse>.
-- CustomerRepository generates sample customers on demand. The blocking method uses Thread.sleep(1000) for each item and builds the entire list before returning. The streaming method uses Flux.range(1, 10) and delayElements(Duration.ofSeconds(1)) to schedule each emission without sleeping on the request thread.
-- CustomerHandler uses .filter(...).next() to turn the first matching customer into a Mono<Customer>. It reads POST bodies with bodyToMono(Customer.class).
-Reading the timing logs
-For the blocking endpoint, the service timer includes list generation and all ten sleeps. For the reactive endpoint, the timer measures only how long it takes to assemble the Flux. WebFlux subscribes later to write the response. Compare the time to the first response item to see what the client experiences. Both delayed endpoints take roughly 10 seconds to finish.
-Reactor examples
-MonoFluxTest illustrates subscription, logging, and error signals. Mono emits zero or one item, while Flux can emit zero to many items. In testFluxError(), the subscriber receives values through AI, then receives the error signal. That signal terminates the sequence before Azure can be emitted. These examples print Reactor signals and values to the console.
+```
+
+**Sample Response:**
+
+```text
+51 : Alex
+```
+
+**Behavior:**
+
+- Accepts a customer JSON object.
+- Reads the request body using `bodyToMono(Customer.class)`.
+- Returns the customer ID and name as plain text.
+- Does not persist customer information.
+
+## Application Architecture
+
+The application demonstrates two WebFlux programming models.
+
+### Annotation-Based Programming Model
+
+```text
+HTTP Client
+    |
+    v
+CustomerController
+    |
+    v
+CustomerService
+    |
+    v
+CustomerRepository
+    |
+    v
+Generated Customer Data
+```
+
+**Components:**
+
+- `CustomerController` handles annotation-based HTTP requests.
+- `CustomerService` delegates customer retrieval operations.
+- `CustomerRepository` generates sample customer records.
+
+### Functional Programming Model
+
+```text
+HTTP Client
+    |
+    v
+RouterConfig
+    |
+    v
+CustomerHandler / CustomerStreamHandler
+    |
+    v
+CustomerRepository / Generated Data
+    |
+    v
+Mono<ServerResponse>
+```
+
+**Components:**
+
+- `RouterConfig` defines functional routes.
+- `CustomerHandler` processes customer lookup and POST requests.
+- `CustomerStreamHandler` handles streaming operations.
+- Handler methods return `Mono<ServerResponse>`.
+
+## Understanding Blocking vs Reactive Processing
+
+### Blocking Processing
+
+The blocking repository method uses `Thread.sleep(1000)` while generating each customer.
+
+```java
+public static void sleepExecution(int i) {
+    try {
+        Thread.sleep(1000);
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+    }
+}
+```
+
+**Execution Flow:**
+
+```text
+Request Received
+      |
+      v
+Generate Customer 1 -> Wait 1 second
+      |
+      v
+Generate Customer 2 -> Wait 1 second
+      |
+      v
+            ...
+      |
+      v
+Generate Customer 10 -> Wait 1 second
+      |
+      v
+Return Complete JSON Array
+```
+
+**Total Execution Time:** Approximately 10 seconds.
+
+The entire customer list is generated before the HTTP response body is returned.
+
+### Reactive Processing
+
+The reactive implementation uses Project Reactor to emit customer records asynchronously.
+
+```java
+public Flux<Customer> findAllCustomersStream() {
+    return Flux.range(1, 10)
+            .delayElements(Duration.ofSeconds(1))
+            .map(i -> new Customer(i, "customer " + i));
+}
+```
+
+**Execution Flow:**
+
+```text
+Request Received
+      |
+      v
+Subscribe to Flux
+      |
+      v
+Customer 1 -> After ~1 second
+      |
+      v
+Customer 2 -> After ~2 seconds
+      |
+      v
+            ...
+      |
+      v
+Customer 10 -> After ~10 seconds
+      |
+      v
+Stream Completed
+```
+
+**Time to First Customer:** Approximately 1 second.
+
+**Total Stream Duration:** Approximately 10 seconds.
+
+The reactive implementation schedules delayed emissions without calling `Thread.sleep()` on the request-processing thread.
+
+## Blocking vs Reactive Comparison
+
+| Feature | Blocking Endpoint | Reactive Streaming Endpoint |
+|---|---|---|
+| API | `/api/customers` | `/api/stream` |
+| Processing | Blocking | Non-blocking delayed emission |
+| Return Type | `List<Customer>` | `Flux<Customer>` |
+| Delay Mechanism | `Thread.sleep()` | `delayElements()` |
+| Response Format | JSON Array | Server-Sent Events |
+| First Customer Received | ~10 seconds | ~1 second |
+| Total Duration | ~10 seconds | ~10 seconds |
+| Delivery | Entire response together | Incremental streaming |
+
+**Important:** Reactive programming does not automatically make every operation faster. Its primary advantage in this example is that delayed emissions can be scheduled without blocking a request-processing thread.
+
+## Understanding Mono and Flux
+
+Project Reactor provides two primary reactive types.
+
+### Mono
+
+`Mono<T>` represents an asynchronous sequence that emits zero or one element.
+
+Example:
+
+```java
+Mono<String> mono = Mono.just("Hello WebFlux");
+
+mono.subscribe(System.out::println);
+```
+
+**Output:**
+
+```text
+Hello WebFlux
+```
+
+### Flux
+
+`Flux<T>` represents an asynchronous sequence that emits zero to many elements.
+
+Example:
+
+```java
+Flux<String> flux = Flux.just(
+        "Java",
+        "Spring Boot",
+        "WebFlux"
+);
+
+flux.subscribe(System.out::println);
+```
+
+**Output:**
+
+```text
+Java
+Spring Boot
+WebFlux
+```
+
+### Mono vs Flux
+
+| Feature | Mono | Flux |
+|---|---|---|
+| Number
